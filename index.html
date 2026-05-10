@@ -713,6 +713,24 @@ function renderChart(data) {
   let html = deltaHtml;
   html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0">${donutHtml||'<div></div>'}${discountHtml||'<div></div>'}</div>`;
   document.getElementById('chartContent').innerHTML = html;
+
+  // Wire waterfall bar hover tooltips
+  const chartWrap = document.querySelector('#chartContent .chart-wrap');
+  const tip = document.getElementById('wfTooltip');
+  if (chartWrap && tip) {
+    chartWrap.addEventListener('mousemove', e => {
+      const bar = e.target.closest('.wf-bar-hover');
+      if (!bar) { tip.style.display = 'none'; return; }
+      const label = bar.dataset.label, et = bar.dataset.et, val = bar.dataset.val, color = bar.dataset.color;
+      tip.innerHTML = `<div style="font-weight:700;font-size:13px;margin-bottom:4px;color:${color}">${label}</div>`
+        + (et ? `<div style="color:rgba(255,255,255,.55);font-size:11px;margin-bottom:6px">${et}</div>` : '')
+        + `<div style="font-size:14px;font-weight:800;color:${color}">${val}</div>`;
+      tip.style.display = 'block';
+      tip.style.left = (e.clientX + 14) + 'px';
+      tip.style.top  = (e.clientY - 10) + 'px';
+    });
+    chartWrap.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  }
 }
 
 // Chart 1 — True delta waterfall (floating bars showing change per step)
@@ -737,10 +755,10 @@ function buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data) {
   if (series.length > 1) bars.push({ label: 'Final', from: 0, to: series[series.length-1].val, et: '', isStart: false, isTotal: true });
 
   // Dynamically size width so bars never get squeezed — min 44px per bar
-  const PL=72, PR=20, PT=40, PB=130;
+  const PL=72, PR=20, PT=40, PB=36;
   const minBarSlot = 44;
   const W = Math.max(960, PL + PR + bars.length * minBarSlot);
-  const H = 400;
+  const H = 320;
   const chartW = W-PL-PR, chartH = H-PT-PB;
 
   const barW = Math.min(40, (chartW/bars.length)*0.55);
@@ -807,15 +825,16 @@ function buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data) {
       svg += `<text x="${cx}" y="${labelY}" text-anchor="middle" font-size="10" font-weight="700" fill="${labelFill}" font-family="-apple-system,sans-serif">${valLabel}</text>`;
     }
 
-    // Rotated label — truncate only if very long (won't overlap since it's diagonal)
-    const maxLabelChars = 28;
-    const rawLabel = bar.label.length > maxLabelChars ? bar.label.slice(0, maxLabelChars-1)+'…' : bar.label;
-    const lColor  = bar.isTotal?(dark?'#57a3fd':'#0176d3'):textC;
-    const lWeight = bar.isTotal?'700':'500';
-    const labelBaseY = H - PB + 8;
-    svg += `<text transform="rotate(-45 ${cx} ${labelBaseY})" x="${cx}" y="${labelBaseY}" text-anchor="end" font-size="11" fill="${lColor}" font-weight="${lWeight}" font-family="-apple-system,sans-serif">${esc(rawLabel)}</text>`;
+    // Invisible hover target over the full column (for tooltip trigger)
+    const tipVal   = sign + fmtN(showVal);
+    const tipLabel = esc(bar.label).replace(/'/g,'&apos;');
+    const tipEt    = esc(bar.et||'').replace(/'/g,'&apos;');
+    svg += `<rect x="${x}" y="${PT}" width="${barW}" height="${chartH}" rx="0" fill="transparent"
+      class="wf-bar-hover"
+      data-label="${tipLabel}" data-et="${tipEt}" data-val="${tipVal}" data-color="${color}"/>`;
   });
 
+  // Legend at bottom
   [{color:dark?'#3ba755':'#2e844a',lbl:'Increase'},{color:dark?'#fe5b4c':'#ba0517',lbl:'Decrease'},{color:dark?'#57a3fd':'#0176d3',lbl:'Total'}]
     .forEach((l,i)=>{
       const lx = PL+i*82;
@@ -824,8 +843,19 @@ function buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data) {
     });
 
   svg += `</svg>`;
-  // Scrollable wrapper so wide charts don't break layout
-  return `<div class="chart-wrap" style="overflow-x:auto">${svg}</div>`;
+
+  // Tooltip div (positioned via JS)
+  const tooltipHtml = `<div id="wfTooltip" style="
+    position:fixed;pointer-events:none;display:none;z-index:9999;
+    background:${dark?'#1e2340':'#1e293b'};color:#fff;
+    border-radius:8px;padding:10px 14px;font-size:12px;
+    font-family:'Salesforce Sans','Arial',sans-serif;
+    box-shadow:0 4px 20px rgba(0,0,0,.35);min-width:160px;max-width:260px;
+    line-height:1.5;white-space:nowrap">
+  </div>`;
+
+  // Scrollable wrapper + tooltip
+  return `<div class="chart-wrap" style="overflow-x:auto;position:relative">${svg}${tooltipHtml}</div>`;
 }
 
 // Chart 2 — Step type donut
