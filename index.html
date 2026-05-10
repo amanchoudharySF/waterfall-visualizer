@@ -790,7 +790,22 @@ function buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data) {
     const showVal  = (bar.isTotal||bar.isStart) ? bar.to : delta;
     const sign     = (!bar.isTotal && !bar.isStart && showVal>0) ? '+' : '';
     const valLabel = sign+(Math.abs(showVal)>=1000?(Math.round(showVal/10)/100)+'k':fmtN(showVal));
-    svg += `<text x="${cx}" y="${barY-5}" text-anchor="middle" font-size="10" font-weight="700" fill="${color}" font-family="-apple-system,sans-serif">${valLabel}</text>`;
+    // Only show label for non-zero deltas (and always for start/total)
+    if (bar.isTotal || bar.isStart || Math.abs(delta) > 0.0001) {
+      // For tall bars, alternate label above bar vs. inside bar to avoid adjacent overlap
+      let labelY, labelFill;
+      if (barH >= 24) {
+        // Tall bar: even index → above bar, odd index → inside bar (near top)
+        if (i % 2 === 0) {
+          labelY = barY - 5; labelFill = color;
+        } else {
+          labelY = barY + 14; labelFill = '#fff';
+        }
+      } else {
+        labelY = barY - 5; labelFill = color;
+      }
+      svg += `<text x="${cx}" y="${labelY}" text-anchor="middle" font-size="10" font-weight="700" fill="${labelFill}" font-family="-apple-system,sans-serif">${valLabel}</text>`;
+    }
 
     // Truncate long labels to fit the slot
     const maxChars = Math.max(6, Math.floor(gap / 6));
