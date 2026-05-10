@@ -730,15 +730,21 @@ function buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data) {
   });
   if (!series.length) return '';
 
-  // Build bars: start bar + one floating delta bar per subsequent step + final total
   const bars = [{ label: series[0].name, from: 0, to: series[0].val, et: series[0].et, isStart: true, isTotal: false }];
   for (let i = 1; i < series.length; i++) {
     bars.push({ label: series[i].name, from: series[i-1].val, to: series[i].val, et: series[i].et, isStart: false, isTotal: false });
   }
   if (series.length > 1) bars.push({ label: 'Final', from: 0, to: series[series.length-1].val, et: '', isStart: false, isTotal: true });
 
-  const W=960, H=360, PL=72, PR=20, PT=40, PB=90;
+  // Dynamically size width so bars never get squeezed — min 44px per bar
+  const PL=72, PR=20, PT=40, PB=100;
+  const minBarSlot = 44;
+  const W = Math.max(960, PL + PR + bars.length * minBarSlot);
+  const H = 360;
   const chartW = W-PL-PR, chartH = H-PT-PB;
+
+  const barW = Math.min(40, (chartW/bars.length)*0.55);
+  const gap  = chartW/bars.length;
 
   const allVals = bars.flatMap(b=>[b.from,b.to,0]);
   const maxV = Math.max(...allVals)*1.12;
@@ -746,14 +752,11 @@ function buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data) {
   const range = maxV-minV || 1;
   const toY   = v => PT + chartH - ((v-minV)/range)*chartH;
   const zeroY = toY(0);
-  const barW  = Math.min(52, (chartW/bars.length)*0.55);
-  const gap   = chartW/bars.length;
 
-  let svg = `<svg id="waterfallChart" viewBox="0 0 ${W} ${H}" style="width:100%;min-width:500px" xmlns="http://www.w3.org/2000/svg">
+  let svg = `<svg id="waterfallChart" viewBox="0 0 ${W} ${H}" style="width:100%;min-width:${W}px" xmlns="http://www.w3.org/2000/svg">
     <rect width="${W}" height="${H}" fill="${bgC}" rx="8"/>
     <text x="${PL}" y="24" font-size="12" font-weight="700" fill="${textC}" font-family="-apple-system,sans-serif">Price Delta Waterfall · ${esc(data.lineItemId||'')} · ${esc(cur)}</text>`;
 
-  // Grid
   for (let i=0;i<=5;i++) {
     const v = minV+(range/5)*i, y = toY(v);
     svg += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="${gridC}" stroke-width="1"/>`;
@@ -766,12 +769,11 @@ function buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data) {
     const delta = bar.to - bar.from;
     const x = PL + gap*i + gap/2 - barW/2, cx = x+barW/2;
 
-    const color = bar.isTotal      ? (dark?'#57a3fd':'#0176d3')
-                : bar.isStart      ? (dark?'#3ba755':'#2e844a')
-                : delta >= 0       ? (dark?'#3ba755':'#2e844a')
-                                   : (dark?'#fe5b4c':'#ba0517');
+    const color = bar.isTotal ? (dark?'#57a3fd':'#0176d3')
+                : bar.isStart ? (dark?'#3ba755':'#2e844a')
+                : delta >= 0  ? (dark?'#3ba755':'#2e844a')
+                              : (dark?'#fe5b4c':'#ba0517');
 
-    // Floating connector
     if (i > 0 && !bar.isTotal) {
       const prevCx = PL+gap*(i-1)+gap/2+barW/2;
       svg += `<line x1="${prevCx}" y1="${toY(bar.from)}" x2="${x}" y2="${toY(bar.from)}" stroke="${dark?'#363c5e':'#cbd5e1'}" stroke-width="1.5" stroke-dasharray="4,3"/>`;
@@ -788,25 +790,28 @@ function buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data) {
     const showVal  = (bar.isTotal||bar.isStart) ? bar.to : delta;
     const sign     = (!bar.isTotal && !bar.isStart && showVal>0) ? '+' : '';
     const valLabel = sign+(Math.abs(showVal)>=1000?(Math.round(showVal/10)/100)+'k':fmtN(showVal));
-    svg += `<text x="${cx}" y="${barY-5}" text-anchor="middle" font-size="11" font-weight="700" fill="${color}" font-family="-apple-system,sans-serif">${valLabel}</text>`;
+    svg += `<text x="${cx}" y="${barY-5}" text-anchor="middle" font-size="10" font-weight="700" fill="${color}" font-family="-apple-system,sans-serif">${valLabel}</text>`;
 
-    const words = bar.label.split(' '), half = Math.ceil(words.length/2);
-    const lColor = bar.isTotal?(dark?'#57a3fd':'#0176d3'):textC;
+    // Truncate long labels to fit the slot
+    const maxChars = Math.max(6, Math.floor(gap / 6));
+    const rawLabel = bar.label.length > maxChars*2 ? bar.label.slice(0, maxChars*2-1)+'…' : bar.label;
+    const words = rawLabel.split(' '), half = Math.ceil(words.length/2);
+    const lColor  = bar.isTotal?(dark?'#57a3fd':'#0176d3'):textC;
     const lWeight = bar.isTotal?'700':'400';
-    svg += `<text x="${cx}" y="${H-PB+16}" text-anchor="middle" font-size="10" fill="${lColor}" font-weight="${lWeight}" font-family="-apple-system,sans-serif">${esc(words.slice(0,half).join(' '))}</text>`;
-    if (words.length>1) svg += `<text x="${cx}" y="${H-PB+28}" text-anchor="middle" font-size="10" fill="${lColor}" font-weight="${lWeight}" font-family="-apple-system,sans-serif">${esc(words.slice(half).join(' '))}</text>`;
+    svg += `<text x="${cx}" y="${H-PB+16}" text-anchor="middle" font-size="9" fill="${lColor}" font-weight="${lWeight}" font-family="-apple-system,sans-serif">${esc(words.slice(0,half).join(' '))}</text>`;
+    if (words.length>1) svg += `<text x="${cx}" y="${H-PB+27}" text-anchor="middle" font-size="9" fill="${lColor}" font-weight="${lWeight}" font-family="-apple-system,sans-serif">${esc(words.slice(half).join(' '))}</text>`;
   });
 
-  // Legend
   [{color:dark?'#3ba755':'#2e844a',lbl:'Increase'},{color:dark?'#fe5b4c':'#ba0517',lbl:'Decrease'},{color:dark?'#57a3fd':'#0176d3',lbl:'Total'}]
     .forEach((l,i)=>{
       const lx = PL+i*82;
-      svg += `<rect x="${lx}" y="${H-18}" width="11" height="11" rx="3" fill="${l.color}" opacity="0.85"/>`;
-      svg += `<text x="${lx+15}" y="${H-9}" font-size="10" fill="${textC}" font-family="-apple-system,sans-serif">${l.lbl}</text>`;
+      svg += `<rect x="${lx}" y="${H-14}" width="11" height="11" rx="3" fill="${l.color}" opacity="0.85"/>`;
+      svg += `<text x="${lx+15}" y="${H-5}" font-size="10" fill="${textC}" font-family="-apple-system,sans-serif">${l.lbl}</text>`;
     });
 
   svg += `</svg>`;
-  return `<div class="chart-wrap">${svg}</div>`;
+  // Scrollable wrapper so wide charts don't break layout
+  return `<div class="chart-wrap" style="overflow-x:auto">${svg}</div>`;
 }
 
 // Chart 2 — Step type donut
