@@ -847,7 +847,7 @@ function buildTypeDonut(steps, dark, textC, bgC) {
   const ROW_H = 28, LEGEND_TOP = 36;
   const legendH = entries.length * ROW_H + LEGEND_TOP + 12;
   const CX = 120, CY = Math.max(legendH/2 + 10, 130), R = 84, IR = 54;
-  const W = 440, H = Math.max(legendH + 20, CY + R + 24);
+  const W = 520, H = Math.max(legendH + 20, CY + R + 24);
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%" xmlns="http://www.w3.org/2000/svg">
     <rect width="${W}" height="${H}" fill="${bgC}" rx="8"/>
@@ -870,13 +870,18 @@ function buildTypeDonut(steps, dark, textC, bgC) {
 
   // Legend — right of donut, each row clearly spaced
   const lx = CX*2 + 16;
+  const countX = W - 12;                   // right-align count column
+  const maxTypeW = countX - lx - 18 - 60; // pixels available for type name (leave 60px for count)
+  const charsPerPx = 7;                    // approx px per char at font-size 12
+  const maxCharsType = Math.floor(maxTypeW / charsPerPx);
   entries.forEach(([type,count],i)=>{
     const y = LEGEND_TOP + i*ROW_H;
     const color = COLORS[i%COLORS.length];
     const pct = ((count/total)*100).toFixed(0);
+    const label = type.length > maxCharsType ? type.slice(0, maxCharsType-1)+'…' : type;
     svg += `<rect x="${lx}" y="${y}" width="12" height="12" rx="3" fill="${color}" opacity="0.9"/>`;
-    svg += `<text x="${lx+18}" y="${y+11}" font-size="12" fill="${textC}" font-family="-apple-system,sans-serif">${esc(type)}</text>`;
-    svg += `<text x="${W-12}" y="${y+11}" text-anchor="end" font-size="12" font-weight="700" fill="${color}" font-family="-apple-system,sans-serif">${count} · ${pct}%</text>`;
+    svg += `<text x="${lx+18}" y="${y+11}" font-size="12" fill="${textC}" font-family="-apple-system,sans-serif">${esc(label)}</text>`;
+    svg += `<text x="${countX}" y="${y+11}" text-anchor="end" font-size="12" font-weight="700" fill="${color}" font-family="-apple-system,sans-serif">${count} · ${pct}%</text>`;
   });
 
   svg += `</svg>`;
