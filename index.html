@@ -737,10 +737,10 @@ function buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data) {
   if (series.length > 1) bars.push({ label: 'Final', from: 0, to: series[series.length-1].val, et: '', isStart: false, isTotal: true });
 
   // Dynamically size width so bars never get squeezed — min 44px per bar
-  const PL=72, PR=20, PT=40, PB=100;
+  const PL=72, PR=20, PT=40, PB=130;
   const minBarSlot = 44;
   const W = Math.max(960, PL + PR + bars.length * minBarSlot);
-  const H = 360;
+  const H = 400;
   const chartW = W-PL-PR, chartH = H-PT-PB;
 
   const barW = Math.min(40, (chartW/bars.length)*0.55);
@@ -807,14 +807,13 @@ function buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data) {
       svg += `<text x="${cx}" y="${labelY}" text-anchor="middle" font-size="10" font-weight="700" fill="${labelFill}" font-family="-apple-system,sans-serif">${valLabel}</text>`;
     }
 
-    // Truncate long labels to fit the slot
-    const maxChars = Math.max(6, Math.floor(gap / 6));
-    const rawLabel = bar.label.length > maxChars*2 ? bar.label.slice(0, maxChars*2-1)+'…' : bar.label;
-    const words = rawLabel.split(' '), half = Math.ceil(words.length/2);
+    // Rotated label — truncate only if very long (won't overlap since it's diagonal)
+    const maxLabelChars = 28;
+    const rawLabel = bar.label.length > maxLabelChars ? bar.label.slice(0, maxLabelChars-1)+'…' : bar.label;
     const lColor  = bar.isTotal?(dark?'#57a3fd':'#0176d3'):textC;
-    const lWeight = bar.isTotal?'700':'400';
-    svg += `<text x="${cx}" y="${H-PB+16}" text-anchor="middle" font-size="9" fill="${lColor}" font-weight="${lWeight}" font-family="-apple-system,sans-serif">${esc(words.slice(0,half).join(' '))}</text>`;
-    if (words.length>1) svg += `<text x="${cx}" y="${H-PB+27}" text-anchor="middle" font-size="9" fill="${lColor}" font-weight="${lWeight}" font-family="-apple-system,sans-serif">${esc(words.slice(half).join(' '))}</text>`;
+    const lWeight = bar.isTotal?'700':'500';
+    const labelBaseY = H - PB + 8;
+    svg += `<text transform="rotate(-45 ${cx} ${labelBaseY})" x="${cx}" y="${labelBaseY}" text-anchor="end" font-size="11" fill="${lColor}" font-weight="${lWeight}" font-family="-apple-system,sans-serif">${esc(rawLabel)}</text>`;
   });
 
   [{color:dark?'#3ba755':'#2e844a',lbl:'Increase'},{color:dark?'#fe5b4c':'#ba0517',lbl:'Decrease'},{color:dark?'#57a3fd':'#0176d3',lbl:'Total'}]
