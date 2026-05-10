@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Waterfall Visualizer</title>
+<style>
+/* ── Salesforce Lightning Design System tokens ── */
+:root {
+  /* Page */
+  --bg:#f3f2f2;--surface:#fff;--surface2:#fafaf9;--surface3:#f3f2f2;
+  /* Borders */
+  --border:#dddbda;--border2:#c9c7c5;
+  /* Text */
+  --text:#181818;--text2:#3e3e3c;--text3:#706e6b;--text4:#aeaeac;
+  /* Brand — Salesforce blue */
+  --accent:#0176d3;--accent2:#0a66c2;--accent-bg:#eff5fb;
+  /* Semantic */
+  --green:#2e844a;--green-bg:#eff7ef;--green2:#3ba755;
+  --red:#ba0517;--red-bg:#fef1ee;--red2:#e74c3c;
+  --amber:#dd7a01;--amber-bg:#fef7ee;--amber2:#f59e0b;
+  --blue:#0176d3;--blue-bg:#eff5fb;--blue2:#1589ee;
+  --purple:#7f8ced;--purple-bg:#f3f0ff;--purple2:#9b8afb;
+  --pink:#e31c79;--pink-bg:#fdf2f8;
+  /* Shadows — SLDS uses very subtle elevation */
+  --shadow:0 2px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 8px rgba(0,0,0,.08);
+  --shadow-lg:0 8px 24px rgba(0,0,0,.12);
+  /* Radius — SLDS uses 4px most places */
+  --r:4px;--r-sm:4px;--r-xs:4px;
+  /* Nav */
+  --nav-bg:#032d60;--nav-text:#fff;
+}
+[data-theme=dark]{
+  --bg:#1b1b1b;--surface:#2b2826;--surface2:#3e3e3c;--surface3:#514f4d;
+  --border:#3e3e3c;--border2:#514f4d;
+  --text:#ffffff;--text2:#e5e5e5;--text3:#adaba8;--text4:#706e6b;
+  --accent:#1b96ff;--accent2:#57a3fd;--accent-bg:#032d60;
+  --green:#2e844a;--green-bg:#0c2912;--green2:#3ba755;
+  --red:#fe5b4c;--red-bg:#370000;--red2:#ff8a7a;
+  --amber:#fe9339;--amber-bg:#3d1f00;--amber2:#ffb75d;
+  --blue:#1b96ff;--blue-bg:#032d60;--blue2:#57a3fd;
+  --purple:#9b8afb;--purple-bg:#1f1b47;--purple2:#b8a9fd;
+  --pink:#ff7ab2;--pink-bg:#3b0025;
+  --shadow:0 2px 4px rgba(0,0,0,.4);
+  --shadow-md:0 4px 12px rgba(0,0,0,.5);
+  --shadow-lg:0 8px 24px rgba(0,0,0,.6);
+  --nav-bg:#032d60;--nav-text:#fff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Salesforce Sans','Arial',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .2s,color .2s;font-size:13px}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── Header / Global Nav ── */
+header{background:var(--nav-bg);border-bottom:none;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:200;box-shadow:0 2px 4px rgba(0,0,0,.3)}
+.header-center{display:flex;gap:0;background:transparent;border:none;border-radius:0;padding:0}
+.tab-btn{padding:0 16px;height:52px;border-radius:0;border:none;border-bottom:3px solid transparent;background:transparent;cursor:pointer;font-size:13px;font-weight:400;color:rgba(255,255,255,.75);transition:all .15s;display:flex;align-items:center;gap:6px;font-family:inherit}
+.tab-btn:hover{color:#fff;background:rgba(255,255,255,.1);border-bottom-color:rgba(255,255,255,.5)}
+.tab-btn.active{color:#fff;font-weight:700;border-bottom-color:#fff;background:rgba(255,255,255,.15)}
+.tab-btn svg{opacity:.8}
+.tab-btn.active svg{opacity:1}
+.header-right{display:flex;align-items:center;gap:8px}
+.theme-pill{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:4px;border:1px solid rgba(255,255,255,.3);background:transparent;cursor:pointer;font-size:12px;font-weight:400;color:rgba(255,255,255,.8);transition:all .15s;font-family:inherit}
+.theme-pill:hover{color:#fff;border-color:#fff}
+
+/* ── Main ── */
+main{max-width:1280px;margin:0 auto;padding:16px 16px}
+
+/* ── Fetch Panel (SLDS Card) ── */
+.fetch-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;box-shadow:var(--shadow);overflow:hidden}
+.fetch-body{padding:16px}
+.input-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.igroup{display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px}
+label{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:2px}
+input[type=text],textarea,select{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-sm);padding:7px 10px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;width:100%;font-family:inherit}
+input[type=text]:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px #d8edfc;background:var(--surface)}
+input[type=text]::placeholder,textarea::placeholder{color:var(--text4)}
+textarea{resize:vertical;min-height:72px;font-family:'Courier New',monospace;font-size:12px}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23706e6b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:32px;cursor:pointer}
+/* SLDS Buttons */
+.btn{padding:0 16px;height:32px;border-radius:4px;border:1px solid transparent;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-family:inherit;letter-spacing:.1px}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--accent2);border-color:var(--accent2)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:var(--surface);border:1px solid var(--border2);color:var(--accent)}
+.btn-ghost:hover{background:var(--accent-bg);border-color:var(--accent)}
+.btn-danger{background:var(--surface);border:1px solid var(--red);color:var(--red)}
+.compare-banner{background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--r-sm);padding:8px 12px;margin-top:10px;font-size:12px;color:var(--accent);font-weight:700;display:flex;align-items:center;gap:8px}
+.error-box{background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r-sm);padding:8px 12px;font-size:13px;color:var(--red);margin-top:10px;display:none}
+
+/* ── Tab panels ── */
+.panel{display:none}.panel.active{display:block}
+
+/* ── Meta strip ── */
+.meta-strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.meta-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 14px;flex:1;min-width:130px;box-shadow:var(--shadow)}
+.meta-card .mc-label{font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px}
+.meta-card .mc-val{font-size:14px;font-weight:700;word-break:break-all;color:var(--text)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-red{background:var(--red-bg);color:var(--red)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text4);pointer-events:none}
+.search-wrap input{padding-left:32px}
+.filter-chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:3px 12px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;transition:all .15s}
+.chip.active{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
+.chip:hover:not(.active){border-color:var(--accent);color:var(--accent)}
+
+/* ── Section heading ── */
+.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── Output chips ── */
+.output-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.out-chip{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 14px;min-width:130px;transition:all .15s;cursor:default;box-shadow:var(--shadow)}
+.out-chip:hover{border-color:var(--accent);box-shadow:var(--shadow-md)}
+.out-chip .oc-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);margin-bottom:3px}
+.out-chip .oc-val{font-size:18px;font-weight:700;color:var(--accent)}
+
+/* ── Waterfall cards ── */
+.wf-list{display:flex;flex-direction:column}
+.wf-conn{width:2px;height:12px;margin-left:20px;background:var(--border)}
+.wf-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;transition:box-shadow .15s}
+.wf-card:hover{box-shadow:var(--shadow-md)}
+.wf-card.hidden{display:none}
+.wf-hdr{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;user-select:none;border-left:4px solid transparent}
+.wf-hdr:hover{background:var(--surface2)}
+.wf-card.open .wf-hdr{border-left-color:var(--accent)}
+.seq-badge{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;border:2px solid currentColor}
+.wf-name{flex:1}
+.wf-ename{font-size:13px;font-weight:700;color:var(--text)}
+.wf-etype{font-size:11px;color:var(--text3);margin-top:1px}
+.wf-pills{display:flex;gap:6px;flex-wrap:wrap}
+.ppill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;white-space:nowrap}
+.chevron{color:var(--text4);transition:transform .2s;flex-shrink:0}
+.wf-card.open .chevron{transform:rotate(90deg)}
+.wf-body{display:none;padding:0 16px 16px;border-top:1px solid var(--border)}
+.wf-card.open .wf-body{display:block}
+
+/* diff tables */
+.diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+@media(max-width:600px){.diff-grid{grid-template-columns:1fr}}
+.diff-box h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px}
+.diff-table{width:100%;border-collapse:collapse}
+.diff-table tr{border-bottom:1px solid var(--border)}
+.diff-table tr:last-child{border-bottom:none}
+.diff-table td{padding:5px 0;font-size:12px;font-family:'Courier New',monospace}
+.diff-table td:first-child{color:var(--text3);padding-right:10px;width:55%}
+.diff-table td:last-child{font-weight:700;word-break:break-all}
+.null-val{color:var(--text4)!important;font-style:italic;font-weight:400!important}
+.diff-changed td:last-child{color:var(--green);background:var(--green-bg);padding:2px 6px;border-radius:3px}
+.diff-new td:last-child{color:var(--accent);background:var(--accent-bg);padding:2px 6px;border-radius:3px}
+.adj-strip{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.adj-tag{background:var(--amber-bg);border:1px solid var(--amber);color:var(--amber);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700}
+
+/* mapping table — collapsible */
+.map-section{margin-top:12px}
+.map-section h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)}
+.map-chevron{color:var(--text4);transition:transform .2s;flex-shrink:0}
+.map-body{display:none;margin-top:8px}
+.map-section.map-open .map-body{display:block}
+.map-section.map-open .map-chevron{transform:rotate(90deg)}
+
+/* ── Waterfall Chart ── */
+.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);overflow-x:auto;margin-bottom:16px}
+.chart-wrap h3{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:20px}
+#waterfallChart{min-width:500px}
+
+/* ── Journey ── */
+.journey-top{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px;box-shadow:var(--shadow)}
+.tag-multi{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag-pill{padding:3px 12px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px}
+.tag-pill.sel{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
+.tag-pill .x{font-size:14px;line-height:1;opacity:.6}
+.tag-pill.sel .x{opacity:1}
+.journey-cols{display:grid;gap:16px}
+.jcol-header{font-size:12px;font-weight:700;text-align:center;padding:6px 12px;border-radius:var(--r-sm);margin-bottom:12px}
+.jt-list{display:flex;flex-direction:column}
+.jt-conn{width:2px;height:16px;margin-left:15px}
+.jt-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;box-shadow:var(--shadow)}
+.jt-hdr{display:flex;align-items:flex-start;gap:10px;padding:10px 14px}
+.jt-dot{width:16px;height:16px;border-radius:50%;flex-shrink:0;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.jt-info{flex:1}
+.jt-ename{font-size:13px;font-weight:700}
+.jt-etype{font-size:10px;color:var(--text3);font-weight:600;margin-top:1px}
+.jt-status{font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;white-space:nowrap;align-self:flex-start;text-transform:uppercase;letter-spacing:.3px}
+.s-changed{background:var(--accent-bg);color:var(--accent)}
+.s-input{background:var(--blue-bg);color:var(--blue)}
+.s-noop{background:var(--surface3);color:var(--text4);border:1px solid var(--border)}
+.jt-vals{padding:0 14px 10px 42px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.jval{border-radius:var(--r-xs);padding:6px 10px;min-width:96px}
+.jval-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.jval-num{font-size:16px;font-weight:700;font-family:'Courier New',monospace}
+.jval-key{font-size:10px;color:var(--text4);margin-top:1px}
+.jval-in{background:var(--blue-bg);color:var(--blue)}
+.jval-out{background:var(--green-bg);color:var(--green)}
+.jval-null{background:var(--surface2);color:var(--text4)}
+.spark-wrap{margin-top:12px;background:var(--surface2);border-radius:var(--r-sm);padding:12px;border:1px solid var(--border)}
+.spark-title{font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+
+/* ── Compare ── */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:700px){.compare-grid{grid-template-columns:1fr}}
+.compare-col-hdr{font-size:12px;font-weight:700;padding:6px 12px;border-radius:var(--r-sm);margin-bottom:10px;text-align:center}
+.diff-badge{padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700}
+.diff-same{background:var(--surface2);color:var(--text4)}
+.diff-diff{background:var(--amber-bg);color:var(--amber)}
+.diff-only-a{background:var(--blue-bg);color:var(--blue)}
+.diff-only-b{background:var(--purple-bg);color:var(--purple)}
+
+/* ── JSON ── */
+.json-viewer{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:auto;max-height:72vh;box-shadow:var(--shadow)}
+pre{padding:16px;font-family:'Courier New','Consolas',monospace;font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.jk{color:var(--accent)}.js{color:var(--green)}.jn{color:var(--amber)}.jb{color:var(--red)}.jnu{color:var(--text4);font-style:italic}
+
+/* ── Export toolbar ── */
+.export-bar{display:flex;gap:8px;justify-content:flex-end;margin-bottom:12px;flex-wrap:wrap}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:48px 24px;color:var(--text4)}
+.empty svg{margin:0 auto 14px;display:block;opacity:.25}
+.empty h3{font-size:16px;font-weight:700;margin-bottom:6px;color:var(--text3)}
+.empty p{font-size:13px}
+
+/* ── Spinner ── */
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Type color helpers ── */
+.c-lp   {color:#2e844a} .bg-lp  {background:var(--green-bg);border-color:var(--green-bg)}
+.c-md   {color:#dd7a01} .bg-md  {background:var(--amber-bg);border-color:var(--amber-bg)}
+.c-as   {color:#0176d3} .bg-as  {background:var(--blue-bg);border-color:var(--blue-bg)}
+.c-fm   {color:#7f8ced} .bg-fm  {background:var(--purple-bg);border-color:var(--purple-bg)}
+.c-ot   {color:#e31c79} .bg-ot  {background:var(--pink-bg);border-color:var(--pink-bg)}
+
+/* no-data panels */
+#panel-chart .empty, #panel-journey .empty, #panel-compare .empty, #panel-json .empty{padding:36px 24px}
+/* ── Full-screen loader ── */
+#appLoader{
+  position:fixed;inset:0;z-index:9999;
+  background:#032d60;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  transition:opacity .35s ease;
+}
+#appLoader.fade-out{opacity:0;pointer-events:none}
+.loader-ring{
+  width:48px;height:48px;
+  border:3px solid rgba(255,255,255,.25);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:spin .75s linear infinite;
+}
+.loader-text{font-size:14px;font-weight:600;color:rgba(255,255,255,.9);letter-spacing:.2px}
+.loader-sub{font-size:12px;color:rgba(255,255,255,.55);margin-top:-10px}
+</style>
+</head>
+<body data-theme="light">
+
+<!-- Full-screen loader (shown while auto-fetching first line item) -->
+<div id="appLoader" style="display:none">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M2 20h20M6 20V10l6-8 6 8v10"/></svg>
+    <span style="font-size:18px;font-weight:700;color:#fff;letter-spacing:.2px">Waterfall Visualizer</span>
+  </div>
+  <div class="loader-ring"></div>
+  <div class="loader-text" id="loaderText">Loading line items…</div>
+  <div class="loader-sub" id="loaderSub">Connecting to execution</div>
+</div>
+
+<header>
+  <div class="header-center" id="tabBar" style="display:none">
+    <button class="tab-btn active" data-tab="waterfall">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20M6 20V10l6-8 6 8v10"/></svg>Waterfall
+    </button>
+    <button class="tab-btn" data-tab="chart">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Chart
+    </button>
+    <button class="tab-btn" data-tab="journey">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>Tag Journey
+    </button>
+    <button class="tab-btn" data-tab="compare">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>Compare
+    </button>
+    <button class="tab-btn" data-tab="json">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>JSON
+    </button>
+  </div>
+
+  <div class="header-right">
+    <div class="theme-pill" id="themePill">
+      <svg id="themeIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <span id="themeLabel">Light</span>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- ── Fetch Panel ── -->
+<div class="fetch-panel">
+  <div class="fetch-body">
+    <div class="input-row">
+      <div class="igroup" style="flex:2">
+        <label>Line Item</label>
+        <select id="lineItemId" onchange="doFetch()">
+          <option value="">— select a line item —</option>
+        </select>
+      </div>
+      <input type="hidden" id="executionId"/>
+      <button class="btn btn-primary" id="fetchBtn" onclick="doFetch()"><span id="fetchLbl">Fetch</span></button>
+    </div>
+    <div id="liLoadingMsg" style="font-size:12px;color:var(--text4);margin-top:8px;display:none">
+      <span class="spin" style="border-top-color:var(--accent);border-color:var(--border2);display:inline-block"></span> Loading line items…
+    </div>
+    <div class="error-box" id="errBox"></div>
+  </div>
+</div>
+
+<!-- ── Panels ── -->
+
+<!-- Waterfall -->
+<div class="panel active" id="panel-waterfall">
+  <div id="wfContent">
+    <div class="empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 20h20M6 20V10l6-8 6 8v10"/></svg><h3>No data yet</h3><p>Fetch an execution or paste JSON above.</p></div>
+  </div>
+</div>
+
+<!-- Chart -->
+<div class="panel" id="panel-chart">
+  <div id="chartContent">
+    <div class="empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><h3>No data yet</h3><p>Load data to see the price flow chart.</p></div>
+  </div>
+</div>
+
+<!-- Tag Journey -->
+<div class="panel" id="panel-journey">
+  <div id="journeyContent">
+    <div class="empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><h3>No data yet</h3><p>Load data then select tags to trace.</p></div>
+  </div>
+</div>
+
+<!-- Compare -->
+<div class="panel" id="panel-compare">
+  <div class="fetch-panel" style="margin-bottom:20px">
+    <div class="fetch-body">
+      <div class="input-row">
+        <div class="igroup" style="flex:1">
+          <label>Line Item A</label>
+          <select id="cmpLiA"><option value="">— select —</option></select>
+        </div>
+        <div class="igroup" style="flex:1">
+          <label>Line Item B</label>
+          <select id="cmpLiB"><option value="">— select —</option></select>
+        </div>
+        <button class="btn btn-primary" id="cmpBtn" onclick="doCompare()"><span id="cmpLbl">Compare</span></button>
+      </div>
+      <div class="error-box" id="cmpErr"></div>
+    </div>
+  </div>
+  <div id="compareContent">
+    <div class="empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18"/></svg><h3>No comparison yet</h3><p>Select two line items above to diff them.</p></div>
+  </div>
+</div>
+
+<!-- JSON -->
+<div class="panel" id="panel-json">
+  <div class="export-bar"><button class="btn btn-ghost" onclick="exportJSON()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download JSON</button></div>
+  <div class="json-viewer"><pre id="jsonPre"><span class="jnu">No data loaded yet.</span></pre></div>
+</div>
+
+</main>
+
+<script>
+// ── State ──
+let WF = null;   // primary data
+let WF2 = null;  // compare data
+
+// ── Theme ──
+const themePill = document.getElementById('themePill');
+const themeIcon = document.getElementById('themeIcon');
+const themeLabel = document.getElementById('themeLabel');
+const moonSVG = `<svg id="themeIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const sunSVG  = `<svg id="themeIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+themePill.addEventListener('click', () => {
+  const dark = document.body.dataset.theme === 'dark';
+  document.body.dataset.theme = dark ? 'light' : 'dark';
+  themePill.innerHTML = (dark ? sunSVG : moonSVG) + `<span>${dark ? 'Light' : 'Dark'}</span>`;
+  if (WF) renderChart(WF);
+});
+
+// ── Main tabs ──
+document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-tab]').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  document.getElementById('panel-' + b.dataset.tab).classList.add('active');
+}));
+function switchTab(name) {
+  document.querySelectorAll('[data-tab]').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+// ── Helpers ──
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtN(v, currency) {
+  if (typeof v !== 'number') return esc(String(v??''));
+  if (currency) return new Intl.NumberFormat('en-US',{style:'currency',currency,maximumFractionDigits:4}).format(v);
+  return v.toLocaleString(undefined,{maximumFractionDigits:6});
+}
+function showErr(id, msg) { const e = document.getElementById(id); e.textContent = msg; e.style.display = 'block'; }
+function hideErr(id) { document.getElementById(id).style.display = 'none'; }
+
+function typeClass(et) {
+  if (!et) return 'ot';
+  if (et === 'ListPrice') return 'lp';
+  if (et === 'ManualDiscount') return 'md';
+  if (et === 'AssignmentElement') return 'as';
+  if (et.startsWith('Formula')) return 'fm';
+  return 'ot';
+}
+function typeColor(et) {
+  const m = {lp:'#2e844a',md:'#dd7a01',as:'#0176d3',fm:'#7f8ced',ot:'#e31c79'};
+  return m[typeClass(et)] || m.ot;
+}
+function typeIcon(et) {
+  const c = typeClass(et);
+  const icons = {
+    lp:`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`,
+    md:`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>`,
+    as:`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`,
+    fm:`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>`,
+    ot:`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/></svg>`,
+  };
+  return icons[c];
+}
+
+// ── Fetch ──
+async function doFetch() {
+  const li = document.getElementById('lineItemId').value.trim();
+  const ex = document.getElementById('executionId').value.trim();
+  if (!li || !ex) { showErr('errBox','No line item or execution ID available yet.'); return; }
+  hideErr('errBox');
+  setLoading('fetchBtn','fetchLbl',true);
+  try {
+    const r = await fetch(`/api/waterfall/${encodeURIComponent(li)}/${encodeURIComponent(ex)}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+    renderAll(await r.json());
+  } catch(e) { showErr('errBox', e.message); }
+  finally { setLoading('fetchBtn','fetchLbl',false,'Fetch'); }
+}
+function setLoading(btnId, lblId, on, label='') {
+  const btn = document.getElementById(btnId);
+  const lbl = document.getElementById(lblId);
+  btn.disabled = on;
+  lbl.innerHTML = on ? '<span class="spin"></span>' : label;
+}
+document.getElementById('lineItemId').addEventListener('keydown', e => { if(e.key==='Enter') doFetch(); });
+
+// ── Auto-populate from URL params & load line items dropdown ──
+(async function() {
+  const params  = new URLSearchParams(window.location.search);
+  const execKey = params.get('executionId');
+  if (!execKey) return;
+
+  // Show full-screen loader immediately
+  const loader    = document.getElementById('appLoader');
+  const loaderTxt = document.getElementById('loaderText');
+  const loaderSub = document.getElementById('loaderSub');
+  loader.style.display = 'flex';
+
+  const msg = document.getElementById('liLoadingMsg');
+  msg.style.display = 'block';
+
+  function hideLoader() {
+    loader.classList.add('fade-out');
+    setTimeout(() => { loader.style.display = 'none'; loader.classList.remove('fade-out'); }, 380);
+  }
+
+  try {
+    loaderTxt.textContent = 'Loading line items…';
+    loaderSub.textContent = 'Querying execution ' + execKey;
+
+    const r = await fetch(`/api/lineitems/${encodeURIComponent(execKey)}`);
+    const data = await r.json();
+    const lineItems = data.lineItems || [];
+    const waterfallExecId = data.waterfallExecutionId;
+
+    const sel = document.getElementById('lineItemId');
+    sel.innerHTML = '';
+
+    if (!lineItems.length) {
+      sel.innerHTML = '<option value="">No line items found</option>';
+      msg.style.display = 'none';
+      hideLoader();
+      return;
+    }
+
+    lineItems.sort((a, b) => {
+      const na = parseInt(a.id.replace(/\D/g, ''), 10);
+      const nb = parseInt(b.id.replace(/\D/g, ''), 10);
+      return na - nb;
+    });
+
+    lineItems.forEach(li => {
+      const opt = document.createElement('option');
+      opt.value = li.id;
+      opt.textContent = `${li.id}  (${li.status})`;
+      sel.appendChild(opt);
+    });
+
+    msg.style.display = 'none';
+
+    if (waterfallExecId) {
+      document.getElementById('executionId').value = waterfallExecId;
+    }
+
+    // Update loader message before waterfall fetch
+    loaderTxt.textContent = 'Fetching waterfall data…';
+    loaderSub.textContent = lineItems[0].id;
+
+    sel.value = lineItems[0].id;
+    await doFetch();   // wait for it — loader hides inside renderAll
+  } catch(e) {
+    msg.textContent = 'Failed to load: ' + e.message;
+    hideLoader();
+  }
+
+  // Safety net: always hide after 15s
+  setTimeout(hideLoader, 15000);
+})();
+
+// ── Render all ──
+function renderAll(data) {
+  WF = data;
+  document.getElementById('tabBar').style.display = 'flex';
+  renderWaterfall(data);
+  renderChart(data);
+  renderJourneyShell(data);
+  renderJSON(data);
+  populateCompareDropdowns();
+  switchTab('waterfall');
+  // Dismiss loader if still visible
+  const loader = document.getElementById('appLoader');
+  if (loader && loader.style.display !== 'none') {
+    loader.classList.add('fade-out');
+    setTimeout(() => { loader.style.display = 'none'; loader.classList.remove('fade-out'); }, 380);
+  }
+}
+
+function populateCompareDropdowns() {
+  const sel = document.getElementById('lineItemId');
+  const opts = [...sel.options].filter(o => o.value).map(o => o.cloneNode(true));
+  ['cmpLiA','cmpLiB'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = '<option value="">— select —</option>';
+    opts.forEach(o => el.appendChild(o.cloneNode(true)));
+  });
+}
+
+// ── WATERFALL ──
+function renderWaterfall(data) {
+  const cur = data.currencyCode || 'USD';
+  const dur = data.executionStartTimestamp && data.executionEndTimestamp
+    ? (new Date(data.executionEndTimestamp) - new Date(data.executionStartTimestamp)) + ' ms' : '—';
+
+  let h = `<div class="meta-strip">
+    <div class="meta-card"><div class="mc-label">Line Item</div><div class="mc-val">${esc(data.lineItemId||data.id||'')}</div></div>
+    <div class="meta-card"><div class="mc-label">Execution ID</div><div class="mc-val">${esc(data.executionId||'')}</div></div>
+    <div class="meta-card"><div class="mc-label">Currency</div><div class="mc-val">${esc(cur)}</div></div>
+    <div class="meta-card"><div class="mc-label">Duration</div><div class="mc-val">${esc(dur)}</div></div>
+    <div class="meta-card"><div class="mc-label">Status</div><div class="mc-val">${data.success?'<span class="badge badge-green">✓ Success</span>':'<span class="badge badge-red">✗ Failed</span>'}</div></div>
+  </div>`;
+
+  // Output summary
+  const outKeys = Object.keys(data.output||{}).filter(k=>k!=='isParallelExecution');
+  if (outKeys.length) {
+    h += `<div class="sec-title">Final Output</div><div class="output-grid">`;
+    outKeys.forEach(k => {
+      const v = data.output[k];
+      const disp = typeof v==='number' ? fmtN(v, ['NetUnitPrice','Subtotal','ListPrice'].includes(k) ? cur : null) : esc(String(v));
+      h += `<div class="out-chip"><div class="oc-label">${esc(k)}</div><div class="oc-val">${disp}</div></div>`;
+    });
+    h += `</div>`;
+  }
+
+  // Toolbar
+  h += `<div class="toolbar">
+    <div class="search-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input type="text" id="wfSearch" placeholder="Search steps…" oninput="filterSteps()"/></div>
+    <div class="filter-chips">
+      <span class="chip active" data-filter="all" onclick="setFilter(this,'all')">All</span>
+      <span class="chip" data-filter="ListPrice" onclick="setFilter(this,'ListPrice')">List Price</span>
+      <span class="chip" data-filter="ManualDiscount" onclick="setFilter(this,'ManualDiscount')">Discount</span>
+      <span class="chip" data-filter="AssignmentElement" onclick="setFilter(this,'AssignmentElement')">Assignment</span>
+      <span class="chip" data-filter="Formula" onclick="setFilter(this,'Formula')">Formula</span>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn btn-ghost" onclick="exportCSV()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>CSV</button>
+      <button class="btn btn-ghost" onclick="exportPNG()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>PNG</button>
+    </div>
+  </div>`;
+
+  h += `<div class="sec-title">Pricing Steps (${(data.waterfall||[]).length})</div><div class="wf-list" id="wfList">`;
+
+  (data.waterfall||[]).forEach((step, idx) => {
+    const et    = step.pricingElement?.elementType || 'Unknown';
+    const name  = step.pricingElement?.name || 'Step ' + idx;
+    const tc    = typeClass(et);
+    const color = typeColor(et);
+    const inp   = step.inputParameters  || {};
+    const out   = step.outputParameters || {};
+    const adjs  = (step.pricingElement?.adjustments||[]).filter(a=>a.AdjustmentValue!=null);
+
+    // price pills
+    const priceKeys = ['NetUnitPrice','Subtotal','ListPrice'];
+    let pills = '';
+    priceKeys.forEach(k => {
+      if (k in out) pills += `<span class="ppill bg-${tc}" style="color:${color}">${esc(k)}: ${fmtN(out[k],cur)}</span>`;
+    });
+
+    // diff rows — highlight output keys that differ from input
+    const inRows  = Object.entries(inp).map(([k,v]) => {
+      const changed = k in out && out[k] !== v;
+      return `<tr class="${changed?'diff-changed':''}"><td>${esc(k)}</td><td class="${v===null?'null-val':''}">${v===null?'null':esc(String(v))}</td></tr>`;
+    }).join('');
+    const outRows = Object.entries(out).map(([k,v]) => {
+      const isNew = !(k in inp);
+      return `<tr class="${isNew?'diff-new':'diff-changed'}"><td>${esc(k)}</td><td class="${v===null?'null-val':''}">${v===null?'null':esc(String(v))}</td></tr>`;
+    }).join('');
+    const mapRows = Object.entries(step.fieldToTagNameMapping||{}).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+    const adjHtml = adjs.length ? `<div class="adj-strip">${adjs.map(a=>`<span class="adj-tag">${esc(a.AdjustmentType)}: ${esc(String(a.AdjustmentValue))}</span>`).join('')}</div>` : '';
+
+    if (idx > 0) h += `<div class="wf-conn"></div>`;
+    h += `
+    <div class="wf-card" id="wfc-${idx}" data-type="${esc(et)}" data-name="${esc(name.toLowerCase())}">
+      <div class="wf-hdr" onclick="toggleWF('wfc-${idx}')">
+        <div class="seq-badge c-${tc}" style="border-color:${color}">${typeIcon(et)||''}${idx+1}</div>
+        <div class="wf-name"><div class="wf-ename">${esc(name)}</div><div class="wf-etype">${esc(et)}</div></div>
+        <div class="wf-pills">${pills}</div>
+        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="wf-body">
+        ${adjHtml}
+        <div class="diff-grid">
+          <div class="diff-box"><h4>Inputs</h4><table class="diff-table"><tbody>${inRows||'<tr><td colspan="2" class="null-val">—</td></tr>'}</tbody></table></div>
+          <div class="diff-box"><h4>Outputs <span style="font-size:10px;color:var(--accent)">(highlighted = changed/new)</span></h4><table class="diff-table"><tbody>${outRows||'<tr><td colspan="2" class="null-val">—</td></tr>'}</tbody></table></div>
+        </div>
+        <div class="map-section">
+          <div onclick="this.parentElement.classList.toggle('map-open')" style="cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;margin-top:10px">
+            <svg class="map-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            <h4 style="margin:0">Field → Tag Mapping</h4>
+          </div>
+          <div class="map-body"><table class="diff-table"><tbody>${mapRows||'<tr><td colspan="2" class="null-val">—</td></tr>'}</tbody></table></div>
+        </div>
+      </div>
+    </div>`;
+  });
+  h += `</div>`;
+  document.getElementById('wfContent').innerHTML = h;
+}
+
+function toggleWF(id) { document.getElementById(id).classList.toggle('open'); }
+
+let activeFilter = 'all';
+function setFilter(el, type) {
+  document.querySelectorAll('[data-filter]').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  activeFilter = type;
+  filterSteps();
+}
+function filterSteps() {
+  const q = (document.getElementById('wfSearch')?.value||'').toLowerCase();
+  document.querySelectorAll('.wf-card').forEach(card => {
+    const et   = card.dataset.type || '';
+    const name = card.dataset.name || '';
+    const typeOk = activeFilter==='all' || et === activeFilter || (activeFilter==='Formula' && et.startsWith('Formula'));
+    const textOk = !q || name.includes(q) || et.toLowerCase().includes(q);
+    card.classList.toggle('hidden', !(typeOk && textOk));
+    // hide connector before hidden card
+    const prev = card.previousElementSibling;
+    if (prev && prev.classList.contains('wf-conn')) prev.style.display = (typeOk&&textOk)?'':'none';
+  });
+}
+
+// ── WATERFALL CHART (multi-panel) ──
+function renderChart(data) {
+  const steps = data.waterfall || [];
+  const cur   = data.currencyCode || 'USD';
+  const dark  = document.body.dataset.theme === 'dark';
+  const textC = dark ? '#c5cadf' : '#374151';
+  const gridC = dark ? '#2a2e4a' : '#e2e6f3';
+  const bgC   = dark ? '#141626' : '#ffffff';
+
+  const deltaHtml    = buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data);
+  const donutHtml    = buildTypeDonut(steps, dark, textC, bgC);
+  const discountHtml = buildDiscountBreakdown(steps, cur, dark, textC, bgC);
+
+  if (!deltaHtml && !donutHtml && !discountHtml) {
+    document.getElementById('chartContent').innerHTML = `<div class="empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><h3>No numeric price data</h3><p>No NetUnitPrice/ListPrice/Subtotal found in outputs.</p></div>`;
+    return;
+  }
+
+  let html = deltaHtml;
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0">${donutHtml||'<div></div>'}${discountHtml||'<div></div>'}</div>`;
+  document.getElementById('chartContent').innerHTML = html;
+}
+
+// Chart 1 — True delta waterfall (floating bars showing change per step)
+function buildDeltaWaterfall(steps, cur, dark, textC, gridC, bgC, data) {
+  const series = [];
+  steps.forEach((step, idx) => {
+    const out  = step.outputParameters || {};
+    const et   = step.pricingElement?.elementType || '';
+    const name = step.pricingElement?.name || `Step ${idx+1}`;
+    let val = null;
+    if ('NetUnitPrice' in out) val = out.NetUnitPrice;
+    else if ('ListPrice' in out) val = out.ListPrice;
+    else if ('Subtotal'  in out) val = out.Subtotal;
+    if (val !== null && typeof val === 'number') series.push({ name, et, val });
+  });
+  if (!series.length) return '';
+
+  // Build bars: start bar + one floating delta bar per subsequent step + final total
+  const bars = [{ label: series[0].name, from: 0, to: series[0].val, et: series[0].et, isStart: true, isTotal: false }];
+  for (let i = 1; i < series.length; i++) {
+    bars.push({ label: series[i].name, from: series[i-1].val, to: series[i].val, et: series[i].et, isStart: false, isTotal: false });
+  }
+  if (series.length > 1) bars.push({ label: 'Final', from: 0, to: series[series.length-1].val, et: '', isStart: false, isTotal: true });
+
+  const W=960, H=360, PL=72, PR=20, PT=40, PB=90;
+  const chartW = W-PL-PR, chartH = H-PT-PB;
+
+  const allVals = bars.flatMap(b=>[b.from,b.to,0]);
+  const maxV = Math.max(...allVals)*1.12;
+  const minV = Math.min(...allVals,0)*1.1;
+  const range = maxV-minV || 1;
+  const toY   = v => PT + chartH - ((v-minV)/range)*chartH;
+  const zeroY = toY(0);
+  const barW  = Math.min(52, (chartW/bars.length)*0.55);
+  const gap   = chartW/bars.length;
+
+  let svg = `<svg id="waterfallChart" viewBox="0 0 ${W} ${H}" style="width:100%;min-width:500px" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="${bgC}" rx="8"/>
+    <text x="${PL}" y="24" font-size="12" font-weight="700" fill="${textC}" font-family="-apple-system,sans-serif">Price Delta Waterfall · ${esc(data.lineItemId||'')} · ${esc(cur)}</text>`;
+
+  // Grid
+  for (let i=0;i<=5;i++) {
+    const v = minV+(range/5)*i, y = toY(v);
+    svg += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="${gridC}" stroke-width="1"/>`;
+    const lbl = Math.abs(v)>=1000 ? (Math.round(v/100)/10)+'k' : Math.round(v*10)/10;
+    svg += `<text x="${PL-5}" y="${y+4}" text-anchor="end" font-size="10" fill="${textC}" font-family="-apple-system,sans-serif">${lbl}</text>`;
+  }
+  svg += `<line x1="${PL}" y1="${zeroY}" x2="${W-PR}" y2="${zeroY}" stroke="${dark?'#363c5e':'#9ca3af'}" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+
+  bars.forEach((bar, i) => {
+    const delta = bar.to - bar.from;
+    const x = PL + gap*i + gap/2 - barW/2, cx = x+barW/2;
+
+    const color = bar.isTotal      ? (dark?'#57a3fd':'#0176d3')
+                : bar.isStart      ? (dark?'#3ba755':'#2e844a')
+                : delta >= 0       ? (dark?'#3ba755':'#2e844a')
+                                   : (dark?'#fe5b4c':'#ba0517');
+
+    // Floating connector
+    if (i > 0 && !bar.isTotal) {
+      const prevCx = PL+gap*(i-1)+gap/2+barW/2;
+      svg += `<line x1="${prevCx}" y1="${toY(bar.from)}" x2="${x}" y2="${toY(bar.from)}" stroke="${dark?'#363c5e':'#cbd5e1'}" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+    }
+
+    const barTopY = bar.isTotal ? toY(bar.to) : toY(Math.max(bar.from,bar.to));
+    const barBotY = bar.isTotal ? zeroY        : toY(Math.min(bar.from,bar.to));
+    const barH    = Math.max(Math.abs(barTopY-barBotY), 2);
+    const barY    = Math.min(barTopY, barBotY);
+
+    svg += `<rect x="${x+2}" y="${barY+2}" width="${barW}" height="${barH}" rx="4" fill="${color}" opacity="0.12"/>`;
+    svg += `<rect x="${x}"   y="${barY}"   width="${barW}" height="${barH}" rx="4" fill="${color}" opacity="${bar.isTotal?'1':'0.85'}"/>`;
+
+    const showVal  = (bar.isTotal||bar.isStart) ? bar.to : delta;
+    const sign     = (!bar.isTotal && !bar.isStart && showVal>0) ? '+' : '';
+    const valLabel = sign+(Math.abs(showVal)>=1000?(Math.round(showVal/10)/100)+'k':fmtN(showVal));
+    svg += `<text x="${cx}" y="${barY-5}" text-anchor="middle" font-size="11" font-weight="700" fill="${color}" font-family="-apple-system,sans-serif">${valLabel}</text>`;
+
+    const words = bar.label.split(' '), half = Math.ceil(words.length/2);
+    const lColor = bar.isTotal?(dark?'#57a3fd':'#0176d3'):textC;
+    const lWeight = bar.isTotal?'700':'400';
+    svg += `<text x="${cx}" y="${H-PB+16}" text-anchor="middle" font-size="10" fill="${lColor}" font-weight="${lWeight}" font-family="-apple-system,sans-serif">${esc(words.slice(0,half).join(' '))}</text>`;
+    if (words.length>1) svg += `<text x="${cx}" y="${H-PB+28}" text-anchor="middle" font-size="10" fill="${lColor}" font-weight="${lWeight}" font-family="-apple-system,sans-serif">${esc(words.slice(half).join(' '))}</text>`;
+  });
+
+  // Legend
+  [{color:dark?'#3ba755':'#2e844a',lbl:'Increase'},{color:dark?'#fe5b4c':'#ba0517',lbl:'Decrease'},{color:dark?'#57a3fd':'#0176d3',lbl:'Total'}]
+    .forEach((l,i)=>{
+      const lx = PL+i*82;
+      svg += `<rect x="${lx}" y="${H-18}" width="11" height="11" rx="3" fill="${l.color}" opacity="0.85"/>`;
+      svg += `<text x="${lx+15}" y="${H-9}" font-size="10" fill="${textC}" font-family="-apple-system,sans-serif">${l.lbl}</text>`;
+    });
+
+  svg += `</svg>`;
+  return `<div class="chart-wrap">${svg}</div>`;
+}
+
+// Chart 2 — Step type donut
+function buildTypeDonut(steps, dark, textC, bgC) {
+  const counts = {};
+  steps.forEach(s => {
+    let et = s.pricingElement?.elementType || 'Other';
+    if (et.startsWith('Formula')) et = 'Formula';
+    counts[et] = (counts[et]||0)+1;
+  });
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  if (!entries.length) return '';
+
+  const COLORS = ['#0176d3','#2e844a','#dd7a01','#7f8ced','#e31c79','#1589ee','#0891b2'];
+  const total  = steps.length;
+
+  // Size: donut on left, legend rows on right
+  const ROW_H = 28, LEGEND_TOP = 36;
+  const legendH = entries.length * ROW_H + LEGEND_TOP + 12;
+  const CX = 120, CY = Math.max(legendH/2 + 10, 130), R = 84, IR = 54;
+  const W = 440, H = Math.max(legendH + 20, CY + R + 24);
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="${bgC}" rx="8"/>
+    <text x="${W/2}" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="${textC}" font-family="-apple-system,sans-serif">Step Type Composition</text>`;
+
+  let angle = -Math.PI/2;
+  entries.forEach(([,count],i)=>{
+    const sweep = count/total*2*Math.PI, end = angle+sweep;
+    const lg = sweep>Math.PI?1:0, color = COLORS[i%COLORS.length];
+    const x1=CX+R*Math.cos(angle), y1=CY+R*Math.sin(angle);
+    const x2=CX+R*Math.cos(end),   y2=CY+R*Math.sin(end);
+    const ix1=CX+IR*Math.cos(end), iy1=CY+IR*Math.sin(end);
+    const ix2=CX+IR*Math.cos(angle),iy2=CY+IR*Math.sin(angle);
+    svg += `<path d="M${x1},${y1} A${R},${R} 0 ${lg},1 ${x2},${y2} L${ix1},${iy1} A${IR},${IR} 0 ${lg},0 ${ix2},${iy2} Z" fill="${color}" opacity="0.9" stroke="${bgC}" stroke-width="2"/>`;
+    angle = end;
+  });
+
+  svg += `<text x="${CX}" y="${CY+7}"  text-anchor="middle" font-size="26" font-weight="800" fill="${textC}" font-family="-apple-system,sans-serif">${total}</text>
+    <text x="${CX}" y="${CY+22}" text-anchor="middle" font-size="10" fill="${dark?'#8890b0':'#6b7280'}" font-family="-apple-system,sans-serif">total steps</text>`;
+
+  // Legend — right of donut, each row clearly spaced
+  const lx = CX*2 + 16;
+  entries.forEach(([type,count],i)=>{
+    const y = LEGEND_TOP + i*ROW_H;
+    const color = COLORS[i%COLORS.length];
+    const pct = ((count/total)*100).toFixed(0);
+    svg += `<rect x="${lx}" y="${y}" width="12" height="12" rx="3" fill="${color}" opacity="0.9"/>`;
+    svg += `<text x="${lx+18}" y="${y+11}" font-size="12" fill="${textC}" font-family="-apple-system,sans-serif">${esc(type)}</text>`;
+    svg += `<text x="${W-12}" y="${y+11}" text-anchor="end" font-size="12" font-weight="700" fill="${color}" font-family="-apple-system,sans-serif">${count} · ${pct}%</text>`;
+  });
+
+  svg += `</svg>`;
+  return `<div class="chart-wrap" style="padding:16px">${svg}</div>`;
+}
+
+// Chart 3 — Discount / adjustment breakdown
+function buildDiscountBreakdown(steps, cur, dark, textC, bgC) {
+  const adjMap = {};
+  steps.forEach(s=>{
+    (s.pricingElement?.adjustments||[]).forEach(a=>{
+      if (a.AdjustmentValue != null) {
+        const key = a.AdjustmentType||'Unknown';
+        adjMap[key] = (adjMap[key]||0)+Number(a.AdjustmentValue);
+      }
+    });
+  });
+
+  const entries = Object.entries(adjMap).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+  const COLORS  = ['#dd7a01','#ba0517','#7f8ced','#0176d3','#e31c79','#2e844a'];
+  const W=380, PL=14, PR=14, PT=36, rowH=44;
+  const H = PT + Math.max(entries.length,1)*rowH+20;
+  const barZone = W-PL-PR;
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="${bgC}" rx="8"/>
+    <text x="${PL}" y="22" font-size="12" font-weight="700" fill="${textC}" font-family="-apple-system,sans-serif">Adjustment Breakdown</text>`;
+
+  if (!entries.length) {
+    svg += `<text x="${W/2}" y="${H/2+10}" text-anchor="middle" font-size="12" fill="${dark?'#555e7d':'#9ca3af'}" font-family="-apple-system,sans-serif">No adjustments in this execution</text>`;
+    svg += `</svg>`;
+    return `<div class="chart-wrap" style="padding:16px">${svg}</div>`;
+  }
+
+  const maxAbs = Math.max(...entries.map(([,v])=>Math.abs(v)));
+  entries.forEach(([type,val],i)=>{
+    const y=PT+i*rowH, color=COLORS[i%COLORS.length];
+    const bw = maxAbs ? (Math.abs(val)/maxAbs)*(barZone*0.62) : 0;
+    const sign = val>0?'+':'';
+    const valLabel = sign+(Math.abs(val)>=1000?(Math.round(val/10)/100)+'k':fmtN(val));
+    svg += `<text x="${PL}" y="${y+14}" font-size="11" font-weight="600" fill="${textC}" font-family="-apple-system,sans-serif">${esc(type)}</text>`;
+    svg += `<rect x="${PL}" y="${y+18}" width="${barZone*0.62}" height="14" rx="7" fill="${dark?'#1c1f35':'#f1f5f9'}"/>`;
+    svg += `<rect x="${PL}" y="${y+18}" width="${bw}" height="14" rx="7" fill="${color}" opacity="0.85"/>`;
+    svg += `<text x="${PL+barZone*0.62+10}" y="${y+30}" font-size="12" font-weight="700" fill="${color}" font-family="-apple-system,sans-serif">${valLabel}</text>`;
+  });
+
+  svg += `</svg>`;
+  return `<div class="chart-wrap" style="padding:16px">${svg}</div>`;
+}
+
+// ── TAG JOURNEY ──
+function getAllTags(data) {
+  const tags = new Set();
+  (data.waterfall||[]).forEach(s => Object.values(s.fieldToTagNameMapping||{}).forEach(t=>tags.add(t)));
+  return [...tags].sort();
+}
+
+function renderJourneyShell(data) {
+  const tags = getAllTags(data);
+  const pills = tags.map(t =>
+    `<span class="tag-pill" data-tag="${esc(t)}" onclick="toggleTag(this,'${esc(t)}')">${esc(t)}</span>`
+  ).join('');
+
+  document.getElementById('journeyContent').innerHTML = `
+    <div class="journey-top">
+      <div style="flex:1">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:8px">Select Tags to Trace (multi-select)</div>
+        <div class="tag-multi" id="tagPills">${pills}</div>
+      </div>
+      <button class="btn btn-primary" onclick="showJourney()" style="align-self:flex-end">Show Journey</button>
+    </div>
+    <div id="journeyResult"></div>`;
+}
+
+function toggleTag(el, tag) {
+  el.classList.toggle('sel');
+}
+
+function showJourney() {
+  const selected = [...document.querySelectorAll('#tagPills .tag-pill.sel')].map(e=>e.dataset.tag);
+  if (!selected.length) { document.getElementById('journeyResult').innerHTML = `<div class="empty"><h3>No tags selected</h3><p>Click tags above to select them.</p></div>`; return; }
+
+  const data   = WF;
+  const steps  = data.waterfall || [];
+  const cur    = data.currencyCode || 'USD';
+
+  // For each tag, build journey array
+  const journeys = selected.map(tagName => {
+    return steps.map(step => {
+      const mapping  = step.fieldToTagNameMapping || {};
+      const fieldKeys= Object.entries(mapping).filter(([,v])=>v===tagName).map(([k])=>k);
+      if (!fieldKeys.length) return { step, used:false };
+      const inp = step.inputParameters  || {};
+      const out = step.outputParameters || {};
+      const inInput  = fieldKeys.filter(k=>k in inp);
+      const inOutput = fieldKeys.filter(k=>k in out);
+      return { step, used:true, fieldKeys, inInput, inOutput, inp, out };
+    });
+  });
+
+  // Build sparkline data per tag
+  const sparks = selected.map((tagName, ti) => {
+    const pts = [];
+    journeys[ti].forEach((item, si) => {
+      if (item.used && item.inOutput.length > 0) {
+        const v = item.out[item.inOutput[0]];
+        if (typeof v === 'number') pts.push({ si, v });
+      } else if (item.used && item.inInput.length > 0) {
+        const v = item.inp[item.inInput[0]];
+        if (typeof v === 'number') pts.push({ si, v });
+      }
+    });
+    return pts;
+  });
+
+  const cols = selected.length;
+  const gridStyle = cols === 1 ? '' : `grid-template-columns:repeat(${Math.min(cols,3)},1fr)`;
+
+  let h = `<div class="journey-cols" style="${gridStyle}">`;
+  selected.forEach((tagName, ti) => {
+    const journey  = journeys[ti];
+    const sparkPts = sparks[ti];
+    const tagColor = ['#0176d3','#2e844a','#dd7a01','#7f8ced','#e31c79','#1589ee'][ti % 6];
+
+    h += `<div>`;
+    h += `<div class="jcol-header" style="background:var(--surface2);border:1.5px solid ${tagColor};color:${tagColor}">${esc(tagName)}</div>`;
+
+    // Sparkline
+    if (sparkPts.length >= 2) {
+      h += buildSparkline(sparkPts, tagColor, tagName);
+    }
+
+    h += `<div class="jt-list">`;
+    journey.forEach((item, si) => {
+      const { step, used, inInput=[], inOutput=[], inp={}, out={} } = item;
+      const et    = step.pricingElement?.elementType || 'Unknown';
+      const name  = step.pricingElement?.name || `Step ${si}`;
+      const color = typeColor(et);
+
+      let status, sClass, dotIcon;
+      if (!used) { status='Not Used'; sClass='s-noop'; dotIcon=`<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`; }
+      else if (inOutput.length) { status='Updated'; sClass='s-changed'; dotIcon=`<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`; }
+      else { status='Input Only'; sClass='s-input'; dotIcon=`<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`; }
+
+      const connColor = used && inOutput.length ? tagColor : (used ? '#2563eb' : 'var(--border)');
+      if (si > 0) h += `<div class="jt-conn" style="background:${connColor}${!used?';opacity:.3':''}"></div>`;
+
+      h += `<div class="jt-card" style="border-color:${used ? (inOutput.length?tagColor:'var(--blue)'):'var(--border)'}">
+        <div class="jt-hdr">
+          <div class="jt-dot" style="color:${used?color:'var(--border2)'};border-color:${used?color:'var(--border2)'}">${dotIcon}</div>
+          <div class="jt-info"><div class="jt-ename">${si+1}. ${esc(name)}</div><div class="jt-etype">${esc(et)}</div></div>
+          <span class="jt-status ${sClass}">${status}</span>
+        </div>`;
+
+      if (used) {
+        h += `<div class="jt-vals">`;
+        inInput.forEach(fk => {
+          const v = inp[fk];
+          h += `<div class="jval jval-in"><div class="jval-label">Input</div><div class="jval-num">${v===null?'null':esc(String(v))}</div><div class="jval-key">${esc(fk)}</div></div>`;
+        });
+        if (inInput.length && inOutput.length) h += `<div style="color:var(--text4)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>`;
+        inOutput.forEach(fk => {
+          const v = out[fk];
+          h += `<div class="jval jval-out"><div class="jval-label">Output</div><div class="jval-num">${v===null?'null':esc(String(v))}</div><div class="jval-key">${esc(fk)}</div></div>`;
+        });
+        if (inInput.length && !inOutput.length) h += `<div class="jval jval-null" style="font-size:11px;color:var(--text4)">No change</div>`;
+        h += `</div>`;
+      }
+
+      h += `</div>`;
+    });
+    h += `</div></div>`;
+  });
+  h += `</div>`;
+  document.getElementById('journeyResult').innerHTML = h;
+}
+
+function buildSparkline(pts, color, label) {
+  if (pts.length < 2) return '';
+  const W=240, H=60, pad=10;
+  const minV = Math.min(...pts.map(p=>p.v));
+  const maxV = Math.max(...pts.map(p=>p.v));
+  const rng  = maxV - minV || 1;
+  const toX  = i => pad + ((i/(pts.length-1)) * (W - pad*2));
+  const toY  = v => H - pad - ((v-minV)/rng)*(H-pad*2);
+  const polyline = pts.map(p=>`${toX(pts.indexOf(p))},${toY(p.v)}`).join(' ');
+  const area = `${pad},${H-pad} ` + polyline + ` ${toX(pts.length-1)},${H-pad}`;
+  const dark = document.body.dataset.theme==='dark';
+  const bg   = dark ? '#1c1f35' : '#f5f7ff';
+
+  return `<div class="spark-wrap">
+    <div class="spark-title" style="color:${color}">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Value trend · ${esc(label)}
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px" xmlns="http://www.w3.org/2000/svg">
+      <rect width="${W}" height="${H}" fill="${bg}" rx="6"/>
+      <polygon points="${area}" fill="${color}" opacity="0.12"/>
+      <polyline points="${polyline}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${pts.map(p=>`<circle cx="${toX(pts.indexOf(p))}" cy="${toY(p.v)}" r="3" fill="${color}"/>`).join('')}
+    </svg>
+  </div>`;
+}
+
+// ── COMPARE ──
+async function doCompare() {
+  const liA = document.getElementById('cmpLiA').value.trim();
+  const liB = document.getElementById('cmpLiB').value.trim();
+  const ex  = document.getElementById('executionId').value.trim();
+  if (!liA||!liB) { showErr('cmpErr','Select both line items to compare.'); return; }
+  if (!ex)        { showErr('cmpErr','No execution loaded yet — fetch a line item first.'); return; }
+  if (liA === liB){ showErr('cmpErr','Select two different line items.'); return; }
+  hideErr('cmpErr');
+  setLoading('cmpBtn','cmpLbl',true);
+  try {
+    const [rA, rB] = await Promise.all([
+      fetch(`/api/waterfall/${encodeURIComponent(liA)}/${encodeURIComponent(ex)}`),
+      fetch(`/api/waterfall/${encodeURIComponent(liB)}/${encodeURIComponent(ex)}`),
+    ]);
+    if (!rA.ok) throw new Error(`Line Item A: HTTP ${rA.status}`);
+    if (!rB.ok) throw new Error(`Line Item B: HTTP ${rB.status}`);
+    WF2 = await rB.json();
+    renderCompare(await rA.json(), WF2);
+  } catch(e) { showErr('cmpErr', e.message); }
+  finally { setLoading('cmpBtn','cmpLbl',false,'Compare'); }
+}
+
+function renderCompare(a, b) {
+  const stepsA = a.waterfall || [];
+  const stepsB = b.waterfall || [];
+  const len    = Math.max(stepsA.length, stepsB.length);
+
+  let h = `<div class="meta-strip" style="margin-bottom:16px">
+    <div class="meta-card"><div class="mc-label">Exec A</div><div class="mc-val" style="font-size:12px">${esc(a.executionId||'')}</div></div>
+    <div class="meta-card"><div class="mc-label">Exec B</div><div class="mc-val" style="font-size:12px">${esc(b.executionId||'')}</div></div>
+    <div class="meta-card"><div class="mc-label">Steps A / B</div><div class="mc-val">${stepsA.length} / ${stepsB.length}</div></div>
+  </div>`;
+
+  h += `<div class="compare-grid">`;
+  // headers
+  h += `<div class="compare-col-hdr" style="background:var(--blue-bg);color:var(--blue);border:1.5px solid var(--blue)">Execution A · ${esc(a.executionId||'')}</div>`;
+  h += `<div class="compare-col-hdr" style="background:var(--purple-bg);color:var(--purple);border:1.5px solid var(--purple)">Execution B · ${esc(b.executionId||'')}</div>`;
+
+  for (let i=0; i<len; i++) {
+    const sA = stepsA[i], sB = stepsB[i];
+    h += renderCompareStep(sA, sB, i, 'A', '#0176d3');
+    h += renderCompareStep(sB, sA, i, 'B', '#7f8ced');
+  }
+  h += `</div>`;
+  document.getElementById('compareContent').innerHTML = h;
+}
+
+function renderCompareStep(step, other, idx, side, color) {
+  if (!step) return `<div style="height:60px;border:1.5px dashed var(--border);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;color:var(--text4);font-size:12px">Step ${idx+1} not present</div>`;
+  const et   = step.pricingElement?.elementType || 'Unknown';
+  const name = step.pricingElement?.name || `Step ${idx+1}`;
+  const out  = step.outputParameters || {};
+  const otherOut = other?.outputParameters || {};
+
+  const rows = Object.entries(out).map(([k,v]) => {
+    const ov = otherOut[k];
+    const same = ov !== undefined && String(ov) === String(v);
+    const badge = ov === undefined
+      ? `<span class="diff-badge diff-only-${side.toLowerCase()}">Only ${side}</span>`
+      : same ? `<span class="diff-badge diff-same">Same</span>`
+             : `<span class="diff-badge diff-diff">Diff: ${esc(String(ov??'—'))}</span>`;
+    return `<tr><td style="color:var(--text3);font-size:11px;padding-right:8px">${esc(k)}</td><td style="font-weight:700;font-size:12px">${esc(String(v))}</td><td>${badge}</td></tr>`;
+  }).join('');
+
+  return `<div style="background:var(--surface);border:1.5px solid ${color}22;border-radius:var(--r-sm);margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow)">
+    <div style="padding:10px 14px;background:${color}11;border-bottom:1px solid ${color}22;display:flex;align-items:center;gap:8px">
+      <span style="width:22px;height:22px;border-radius:50%;border:2px solid ${color};color:${color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">${idx+1}</span>
+      <div><div style="font-size:13px;font-weight:700">${esc(name)}</div><div style="font-size:10px;color:var(--text4)">${esc(et)}</div></div>
+    </div>
+    ${rows ? `<table style="width:100%;border-collapse:collapse;padding:8px 14px;display:block"><tbody>${rows}</tbody></table>` : '<div style="padding:8px 14px;font-size:12px;color:var(--text4)">No outputs</div>'}
+  </div>`;
+}
+
+// ── JSON ──
+function renderJSON(data) {
+  document.getElementById('jsonPre').innerHTML = syntaxHL(JSON.stringify(data, null, 2));
+}
+function syntaxHL(json) {
+  return json.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, m => {
+      if (/^"/.test(m)) return /:$/.test(m) ? `<span class="jk">${m}</span>` : `<span class="js">${m}</span>`;
+      if (/true|false/.test(m)) return `<span class="jb">${m}</span>`;
+      if (/null/.test(m)) return `<span class="jnu">${m}</span>`;
+      return `<span class="jn">${m}</span>`;
+    });
+}
+
+// ── EXPORT ──
+function exportJSON() {
+  if (!WF) return;
+  download('waterfall.json', JSON.stringify(WF, null, 2), 'application/json');
+}
+
+function exportCSV() {
+  if (!WF) return;
+  const rows = [['Step','Element Name','Element Type','Field','Input Value','Output Value']];
+  (WF.waterfall||[]).forEach((step, i) => {
+    const name = step.pricingElement?.name || `Step ${i+1}`;
+    const et   = step.pricingElement?.elementType || '';
+    const inp  = step.inputParameters  || {};
+    const out  = step.outputParameters || {};
+    const keys = new Set([...Object.keys(inp),...Object.keys(out)]);
+    keys.forEach(k => rows.push([i+1, name, et, k, inp[k]??'', out[k]??'']));
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  download('waterfall.csv', csv, 'text/csv');
+}
+
+function exportPNG() {
+  const svg = document.getElementById('waterfallChart');
+  if (!svg) { alert('Switch to the Chart tab first to generate the chart, then export.'); return; }
+  const xml   = new XMLSerializer().serializeToString(svg);
+  const blob  = new Blob([xml], {type:'image/svg+xml'});
+  const url   = URL.createObjectURL(blob);
+  const img   = new Image();
+  img.onload  = () => {
+    const c = document.createElement('canvas');
+    c.width = svg.viewBox.baseVal.width * 2;
+    c.height = svg.viewBox.baseVal.height * 2;
+    const ctx = c.getContext('2d');
+    ctx.scale(2,2);
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    c.toBlob(b => download('waterfall-chart.png', b, 'image/png', true));
+  };
+  img.src = url;
+}
+
+function download(name, content, type, isBlob=false) {
+  const a = document.createElement('a');
+  a.href = isBlob ? URL.createObjectURL(content) : `data:${type};charset=utf-8,${encodeURIComponent(content)}`;
+  a.download = name;
+  a.click();
+}
+</script>
+</body>
+</html>
